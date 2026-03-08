@@ -44,39 +44,6 @@ st.markdown("""
         color: #34d399 !important;
     }
 
-    /* Radio button navigation bar */
-    div[data-testid="stRadio"] > div {
-        flex-direction: row !important;
-        gap: 0px !important;
-    }
-    div[data-testid="stRadio"] > div > label {
-        background-color: rgba(28, 58, 92, 0.3) !important;
-        color: #d1d5db !important;
-        padding: 10px 24px !important;
-        border-radius: 0px !important;
-        font-weight: 600 !important;
-        font-size: 1rem !important;
-        cursor: pointer !important;
-        border: 1px solid rgba(59, 130, 246, 0.2) !important;
-        margin: 0 !important;
-    }
-    div[data-testid="stRadio"] > div > label:first-child {
-        border-radius: 8px 0 0 8px !important;
-    }
-    div[data-testid="stRadio"] > div > label:last-child {
-        border-radius: 0 8px 8px 0 !important;
-    }
-    div[data-testid="stRadio"] > div > label[data-checked="true"],
-    div[data-testid="stRadio"] > div > label:has(input:checked) {
-        background-color: rgba(59, 130, 246, 0.4) !important;
-        color: #ffffff !important;
-        border-color: #3b82f6 !important;
-    }
-    /* Hide radio dot */
-    div[data-testid="stRadio"] > div > label > div:first-child {
-        display: none !important;
-    }
-
     /* Sidebar branding */
     section[data-testid="stSidebar"] {
         background-color: #0f1724;
@@ -605,55 +572,7 @@ if active_tab == "AI":
     st.title("🤖 AI Health Analytics Assistant")
     st.markdown("Ask questions about your population in plain English.")
 
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-            if "sql" in message and message["sql"]:
-                with st.expander("View SQL"):
-                    st.code(message["sql"], language="sql")
-
-    if prompt := st.chat_input("Ask about your population..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        with st.chat_message("assistant"):
-            with st.spinner("Analyzing..."):
-                result = ask_ai(prompt)
-
-                if result["text"]:
-                    st.markdown(result["text"])
-                if result["sql"]:
-                    with st.expander("View SQL"):
-                        st.code(result["sql"], language="sql")
-                if result["data"] is not None and len(result["data"]) > 0:
-                    st.dataframe(result["data"].head(20), hide_index=True)
-
-                    # Auto-chart small results
-                    if len(result["data"]) <= 10 and len(result["data"].columns) >= 2:
-                        try:
-                            cols = result["data"].columns.tolist()
-                            str_col = next((c for c in cols if result["data"][c].dtype == 'object'), None)
-                            num_col = next((c for c in cols if result["data"][c].dtype in ['int64','float64']), None)
-                            if str_col and num_col:
-                                chart = alt.Chart(result["data"]).mark_bar(cornerRadiusEnd=4).encode(
-                                    y=alt.Y(f'{str_col}:N', sort='-x', title=''),
-                                    x=alt.X(f'{num_col}:Q', title=num_col),
-                                    color=alt.Color(f'{str_col}:N', legend=None, scale=alt.Scale(scheme='tableau10'))
-                                ).properties(height=min(len(result["data"]) * 40, 300))
-                                st.altair_chart(chart, use_container_width=True)
-                        except Exception:
-                            pass
-
-                st.session_state.messages.append({
-                    "role": "assistant", "content": result.get("text", ""),
-                    "sql": result.get("sql", "")
-                })
-
-    st.markdown("---")
+    # -- Suggested questions --
     st.markdown("**Try asking:**")
     c1, c2 = st.columns(2)
     with c1:
@@ -664,3 +583,64 @@ if active_tab == "AI":
         st.markdown("- What is the average HbA1c by risk category?")
         st.markdown("- Which plan type has the highest cost per member?")
         st.markdown("- How many members have both diabetes and heart failure?")
+
+    st.markdown("---")
+
+    # -- Input box (text_input + button — more reliable than chat_input) --
+    input_col, btn_col = st.columns([5, 1])
+    with input_col:
+        user_question = st.text_input(
+            "Your question",
+            placeholder="Ask about your population...",
+            label_visibility="collapsed",
+            key="ai_question"
+        )
+    with btn_col:
+        ask_clicked = st.button("Ask 🚀", use_container_width=True, type="primary")
+
+    # -- Conversation history --
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    # Process the question when button is clicked (or Enter pressed)
+    if ask_clicked and user_question:
+        st.session_state.messages.append({"role": "user", "content": user_question})
+
+        with st.spinner("Analyzing your question..."):
+            result = ask_ai(user_question)
+
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": result.get("text", ""),
+            "sql": result.get("sql", ""),
+            "data": result.get("data")
+        })
+
+    # -- Display conversation (newest first) --
+    for message in reversed(st.session_state.messages):
+        if message["role"] == "user":
+            st.markdown(f"**🧑 You:** {message['content']}")
+        else:
+            st.markdown(f"**🤖 Assistant:** {message['content']}")
+            if "sql" in message and message["sql"]:
+                with st.expander("View SQL"):
+                    st.code(message["sql"], language="sql")
+            if "data" in message and message["data"] is not None and len(message["data"]) > 0:
+                st.dataframe(message["data"].head(20), hide_index=True)
+
+                # Auto-chart small results
+                if len(message["data"]) <= 10 and len(message["data"].columns) >= 2:
+                    try:
+                        cols = message["data"].columns.tolist()
+                        str_col = next((c for c in cols if message["data"][c].dtype == 'object'), None)
+                        num_col = next((c for c in cols if message["data"][c].dtype in ['int64','float64']), None)
+                        if str_col and num_col:
+                            chart = alt.Chart(message["data"]).mark_bar(cornerRadiusEnd=4).encode(
+                                y=alt.Y(f'{str_col}:N', sort='-x', title=''),
+                                x=alt.X(f'{num_col}:Q', title=num_col),
+                                color=alt.Color(f'{str_col}:N', legend=None, scale=alt.Scale(scheme='tableau10'))
+                            ).properties(height=min(len(message["data"]) * 40, 300))
+                            st.altair_chart(chart, use_container_width=True)
+                    except Exception:
+                        pass
+        st.markdown("---")
