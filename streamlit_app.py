@@ -2,164 +2,118 @@
 # HealthStack Analytics
 # AI-Powered Population Health Command Center
 # ========================================
-# Streamlit Community Cloud version
+# This version runs on Streamlit Community Cloud
+# connecting to Snowflake via snowflake-connector-python.
 # ========================================
 
 import streamlit as st
+import snowflake.connector
 import pandas as pd
+import altair as alt
+import json
 
-# -- Page Config (runs before anything else) --
+# -- Page Config --
 st.set_page_config(
     page_title="HealthStack - Population Health Command Center",
     page_icon="🏥",
     layout="wide"
 )
 
-# -- Custom CSS --
+# -- Custom CSS (forces visible text on dark theme + mobile) --
 st.markdown("""
 <style>
-    .block-container { padding-top: 2rem; }
+    .block-container { padding-top: 3.5rem; }
+
+    /* GLOBAL: Force all text to be visible on dark backgrounds */
     .block-container, .block-container * { color: #e2e8f0 !important; }
-    h1, h2, h3, h4, h5, h6 { color: #e2e8f0 !important; }
-    div[data-testid="stMarkdownContainer"], div[data-testid="stMarkdownContainer"] * { color: #e2e8f0 !important; }
+    h1, h2, h3, h4, h5, h6,
+    .stMarkdown, .stMarkdown p, .stMarkdown li,
+    .stMarkdown strong, .stMarkdown em,
+    div[data-testid="stText"],
+    div[data-testid="stMarkdownContainer"],
+    div[data-testid="stMarkdownContainer"] p,
+    div[data-testid="stMarkdownContainer"] li,
+    div[data-testid="stMarkdownContainer"] strong {
+        color: #e2e8f0 !important;
+    }
+
+    /* Buttons - make text visible */
     button[kind="secondary"] { color: #e2e8f0 !important; border-color: #4a5568 !important; }
     button[kind="primary"] { color: #ffffff !important; }
-    input[type="text"], textarea { color: #ffffff !important; }
+
+    /* Text inputs */
+    input[type="text"], textarea { color: #ffffff !important; background-color: #1e293b !important; }
     input::placeholder { color: #94a3b8 !important; }
+
+    /* KPI metric cards */
     div[data-testid="stMetric"] {
         background-color: rgba(28, 58, 92, 0.3);
         border-radius: 8px; padding: 12px 16px;
         border-left: 4px solid #3b82f6;
     }
-    div[data-testid="stMetric"] label { color: #9ca3af !important; }
+    div[data-testid="stMetric"] label { color: #9ca3af !important; font-size: 0.85rem !important; }
     div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
         color: #ffffff !important; font-size: 1.8rem !important; font-weight: 700 !important;
     }
     div[data-testid="stMetric"] div[data-testid="stMetricDelta"] { color: #34d399 !important; }
+
+    /* Sidebar */
     section[data-testid="stSidebar"] { background-color: #0f1724; }
     section[data-testid="stSidebar"] * { color: #cbd5e1 !important; }
+
+    /* Data tables */
     .stDataFrame, .stDataFrame * { color: #e2e8f0 !important; }
+
+    /* Expanders */
     details summary { color: #93c5fd !important; }
+
+    /* Horizontal rules */
     hr { border-color: #334155 !important; }
+
+    /* Selectbox / multiselect text */
     div[data-baseweb="select"] * { color: #e2e8f0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
-
-# ========================================
-# SESSION STATE INIT
-# ========================================
-if "connected" not in st.session_state:
-    st.session_state.connected = False
-if "nav" not in st.session_state:
-    st.session_state.nav = "Dashboard"
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-
-# ========================================
-# LANDING PAGE — renders instantly, no Snowflake needed
-# ========================================
-if not st.session_state.connected:
-    st.title("🏥 HealthStack Analytics")
-    st.subheader("AI-Powered Population Health Command Center")
-    st.markdown("---")
-    st.markdown("""
-    Welcome to HealthStack — an AI-powered analytics platform for population health management,
-    built on Snowflake and Cortex AI.
-
-    **Features:**
-    - 📊 **Dashboard** — KPIs, risk distribution, cost analysis
-    - 👥 **Member Explorer** — Search and drill into individual members
-    - ⚠️ **Care Gaps** — Identify and prioritize care gaps
-    - 🤖 **AI Assistant** — Ask questions in plain English
-    """)
-    st.markdown("")
-
-    if st.button("🚀 Connect & Launch Dashboard", type="primary", use_container_width=True):
-        with st.status("Starting up...", expanded=True) as status:
-            st.write("Importing Snowflake connector...")
-            import snowflake.connector
-
-            st.write("Connecting to Snowflake...")
-            try:
-                conn = snowflake.connector.connect(
-                    account=st.secrets["snowflake"]["account"],
-                    user=st.secrets["snowflake"]["user"],
-                    password=st.secrets["snowflake"]["password"],
-                    warehouse=st.secrets["snowflake"]["warehouse"],
-                    database=st.secrets["snowflake"]["database"],
-                    schema=st.secrets["snowflake"]["schema"],
-                    role=st.secrets["snowflake"]["role"],
-                    login_timeout=120,
-                    network_timeout=120,
-                )
-                st.session_state.sf_conn_params = {
-                    "account": st.secrets["snowflake"]["account"],
-                    "user": st.secrets["snowflake"]["user"],
-                    "password": st.secrets["snowflake"]["password"],
-                    "warehouse": st.secrets["snowflake"]["warehouse"],
-                    "database": st.secrets["snowflake"]["database"],
-                    "schema": st.secrets["snowflake"]["schema"],
-                    "role": st.secrets["snowflake"]["role"],
-                }
-                # Quick test query
-                st.write("Testing connection...")
-                cur = conn.cursor()
-                cur.execute("SELECT 1")
-                cur.close()
-                conn.close()
-
-                st.session_state.connected = True
-                status.update(label="Connected! Loading dashboard...", state="complete")
-                st.rerun()
-
-            except Exception as e:
-                status.update(label="Connection failed", state="error")
-                st.error(f"Could not connect to Snowflake: {e}")
-                st.markdown("**Troubleshooting tips:**")
-                st.markdown("- Your Snowflake warehouse may be suspended. Log into Snowflake and resume it.")
-                st.markdown("- Check that your credentials in Streamlit secrets are correct.")
-                st.markdown("- Try refreshing the page and clicking Connect again.")
-
-    st.markdown("---")
-    st.caption("Built on Snowflake + Cortex AI | HealthStack Analytics v2.0")
-    st.stop()
-
-
-# ========================================
-# MAIN APP (only runs after successful connection)
-# ========================================
-import snowflake.connector
-import altair as alt
-
-
+# -- Snowflake Connection (with timeout + retry) --
 @st.cache_resource
-def get_connection():
-    """Create a cached Snowflake connection."""
-    params = st.session_state.sf_conn_params
-    return snowflake.connector.connect(
-        **params,
-        login_timeout=120,
-        network_timeout=120,
-    )
-
-
-def run_query(sql):
-    """Run SQL and return DataFrame. Auto-retries on stale connection."""
+def get_snowflake_connection():
+    """Create a cached Snowflake connection with timeout settings."""
     try:
-        conn = get_connection()
+        return snowflake.connector.connect(
+            account=st.secrets["snowflake"]["account"],
+            user=st.secrets["snowflake"]["user"],
+            password=st.secrets["snowflake"]["password"],
+            warehouse=st.secrets["snowflake"]["warehouse"],
+            database=st.secrets["snowflake"]["database"],
+            schema=st.secrets["snowflake"]["schema"],
+            role=st.secrets["snowflake"]["role"],
+            login_timeout=60,
+            network_timeout=60,
+        )
+    except Exception as e:
+        st.error(f"Could not connect to Snowflake: {e}")
+        return None
+
+# -- Helper: Run SQL and return DataFrame --
+def run_query(sql):
+    conn = get_snowflake_connection()
+    if conn is None:
+        return pd.DataFrame()
+    try:
         cur = conn.cursor()
         cur.execute(sql)
         columns = [desc[0] for desc in cur.description]
         data = cur.fetchall()
         return pd.DataFrame(data, columns=columns)
     except (snowflake.connector.errors.DatabaseError,
-            snowflake.connector.errors.OperationalError,
-            snowflake.connector.errors.ProgrammingError):
-        get_connection.clear()
+            snowflake.connector.errors.OperationalError):
+        # Connection went stale — clear cache and retry once
+        get_snowflake_connection.clear()
         try:
-            conn = get_connection()
+            conn = get_snowflake_connection()
+            if conn is None:
+                return pd.DataFrame()
             cur = conn.cursor()
             cur.execute(sql)
             columns = [desc[0] for desc in cur.description]
@@ -172,11 +126,13 @@ def run_query(sql):
         st.error(f"Query error: {str(e)}")
         return pd.DataFrame()
 
-
+# -- Helper: AI Chat using Cortex COMPLETE --
 def ask_ai(question):
-    """Use Cortex COMPLETE to answer natural language questions."""
+    """Use Cortex COMPLETE to answer natural language questions about the data."""
     result = {"text": "", "sql": "", "data": None}
+
     try:
+        # Step 1: Generate SQL from question
         sql_gen = run_query(f"""
             SELECT SNOWFLAKE.CORTEX.COMPLETE(
                 'llama3.1-70b',
@@ -203,12 +159,17 @@ def ask_ai(question):
                  Return ONLY the SQL query, nothing else.'
             ) AS generated_sql
         """)
+
         if len(sql_gen) > 0:
             generated_sql = sql_gen['GENERATED_SQL'][0].strip()
             generated_sql = generated_sql.replace('```sql', '').replace('```', '').strip()
             result["sql"] = generated_sql
+
+            # Step 2: Execute the SQL
             data = run_query(generated_sql)
             result["data"] = data
+
+            # Step 3: Generate natural language answer
             result_str = data.head(10).to_string()
             nl = run_query(f"""
                 SELECT SNOWFLAKE.CORTEX.COMPLETE(
@@ -220,21 +181,26 @@ def ask_ai(question):
             """)
             if len(nl) > 0:
                 result["text"] = nl['RESPONSE'][0]
+
     except Exception as e:
         result["text"] = f"I had trouble with that question. Try rephrasing. Error: {str(e)}"
+
     return result
 
 
 # ========================================
-# SIDEBAR (filters)
+# SIDEBAR
 # ========================================
 st.sidebar.title("🏥 HealthStack")
 st.sidebar.markdown("Population Health Command Center")
 st.sidebar.markdown("---")
 
+# Risk Category Filter
 risk_cats = run_query("""
-    SELECT DISTINCT risk_category FROM MEMBER_RISK_PROFILE
-    WHERE risk_category IS NOT NULL ORDER BY risk_category
+    SELECT DISTINCT risk_category
+    FROM MEMBER_RISK_PROFILE
+    WHERE risk_category IS NOT NULL
+    ORDER BY risk_category
 """)
 if len(risk_cats) > 0:
     selected_risk = st.sidebar.multiselect(
@@ -245,6 +211,7 @@ if len(risk_cats) > 0:
 else:
     selected_risk = []
 
+# Plan Type Filter
 plan_types = run_query("SELECT DISTINCT plan_type FROM MEMBER_RISK_PROFILE ORDER BY plan_type")
 if len(plan_types) > 0:
     selected_plans = st.sidebar.multiselect(
@@ -255,6 +222,8 @@ if len(plan_types) > 0:
 else:
     selected_plans = []
 
+# Condition Filter
+st.sidebar.markdown("---")
 condition_filter = st.sidebar.multiselect(
     "Chronic Conditions",
     options=["Diabetes", "Hypertension", "Heart Failure", "COPD", "CKD"],
@@ -265,11 +234,15 @@ condition_filter = st.sidebar.multiselect(
 risk_filter = "','".join(selected_risk) if selected_risk else ''
 plan_filter = "','".join(selected_plans) if selected_plans else ''
 where_clause = f"WHERE risk_category IN ('{risk_filter}') AND plan_type IN ('{plan_filter}')"
+
+condition_sql = ""
 for cond in condition_filter:
     col_map = {"Diabetes": "has_diabetes", "Hypertension": "has_hypertension",
                "Heart Failure": "has_chf", "COPD": "has_copd", "CKD": "has_ckd"}
-    where_clause += f" AND {col_map[cond]} = 1"
+    condition_sql += f" AND {col_map[cond]} = 1"
+where_clause += condition_sql
 
+# Sidebar footer
 st.sidebar.markdown("---")
 st.sidebar.markdown("**HealthStack Analytics** v2.0")
 st.sidebar.markdown("Built on Snowflake + Cortex AI")
@@ -277,23 +250,27 @@ st.sidebar.markdown("Built on Snowflake + Cortex AI")
 # ========================================
 # NAVIGATION
 # ========================================
+st.markdown("")  # spacer
 nav_cols = st.columns(4)
 with nav_cols[0]:
-    if st.button("📊 Dashboard", use_container_width=True,
-                 type="primary" if st.session_state.nav == "Dashboard" else "secondary"):
+    dash_btn = st.button("📊 Dashboard", use_container_width=True, type="primary" if "nav" not in st.session_state or st.session_state.nav == "Dashboard" else "secondary")
+    if dash_btn:
         st.session_state.nav = "Dashboard"
 with nav_cols[1]:
-    if st.button("👥 Members", use_container_width=True,
-                 type="primary" if st.session_state.nav == "Members" else "secondary"):
+    member_btn = st.button("👥 Members", use_container_width=True, type="primary" if st.session_state.get("nav") == "Members" else "secondary")
+    if member_btn:
         st.session_state.nav = "Members"
 with nav_cols[2]:
-    if st.button("⚠️ Care Gaps", use_container_width=True,
-                 type="primary" if st.session_state.nav == "Care Gaps" else "secondary"):
+    gaps_btn = st.button("⚠️ Care Gaps", use_container_width=True, type="primary" if st.session_state.get("nav") == "Care Gaps" else "secondary")
+    if gaps_btn:
         st.session_state.nav = "Care Gaps"
 with nav_cols[3]:
-    if st.button("🤖 AI Assistant", use_container_width=True,
-                 type="primary" if st.session_state.nav == "AI" else "secondary"):
+    ai_btn = st.button("🤖 AI Assistant", use_container_width=True, type="primary" if st.session_state.get("nav") == "AI" else "secondary")
+    if ai_btn:
         st.session_state.nav = "AI"
+
+if "nav" not in st.session_state:
+    st.session_state.nav = "Dashboard"
 
 active_tab = st.session_state.nav
 st.markdown("---")
@@ -314,7 +291,8 @@ if active_tab == "Dashboard":
             ROUND(AVG(CASE WHEN has_diabetes = 1 THEN latest_hba1c END), 1) AS avg_hba1c,
             ROUND(AVG(chronic_condition_count), 1) AS avg_conditions,
             ROUND(SUM(er_cost + inpatient_cost) / NULLIF(SUM(total_paid_amount), 0) * 100, 1) AS acute_cost_pct
-        FROM MEMBER_RISK_PROFILE {where_clause}
+        FROM MEMBER_RISK_PROFILE
+        {where_clause}
     """)
 
     if len(kpis) > 0:
@@ -333,7 +311,9 @@ if active_tab == "Dashboard":
 
     st.markdown("---")
 
+    # Charts
     chart_col1, chart_col2 = st.columns(2)
+
     with chart_col1:
         st.subheader("Risk Category Distribution")
         risk_dist = run_query(f"""
@@ -375,7 +355,9 @@ if active_tab == "Dashboard":
             ).properties(width=350, height=300)
             st.altair_chart(cost_bar, use_container_width=True)
 
+    # Condition Prevalence + Cost Breakdown
     chart_col3, chart_col4 = st.columns(2)
+
     with chart_col3:
         st.subheader("Chronic Condition Prevalence")
         cond_data = run_query(f"""
@@ -419,6 +401,7 @@ if active_tab == "Dashboard":
             ).properties(height=250)
             st.altair_chart(stacked, use_container_width=True)
 
+    # Cost Concentration Table
     st.subheader("Cost Concentration Analysis")
     concentration = run_query(f"""
         SELECT risk_category AS "Risk Category",
@@ -484,6 +467,7 @@ if active_tab == "Members":
                          "Risk Score": st.column_config.ProgressColumn(min_value=0, max_value=100),
                      })
 
+    # Member Detail
     st.markdown("---")
     st.subheader("Member Detail")
     selected_member = st.text_input("Enter Member ID for details", "", key="detail")
@@ -516,6 +500,7 @@ if active_tab == "Members":
                 st.write(f"ER: {d['ER_VISITS']} | IP: {d['INPATIENT_ADMITS']}")
                 st.write(f"HbA1c: {d.get('LATEST_HBA1C', 'N/A')} | BNP: {d.get('LATEST_BNP', 'N/A')}")
 
+            # Lab Trends
             try:
                 labs = run_query(f"""
                     SELECT test_name, lab_date, result_value, normal_high
@@ -543,6 +528,7 @@ if active_tab == "Members":
             except Exception:
                 pass
 
+            # AI Care Summary
             if st.button("🤖 Generate AI Care Summary"):
                 with st.spinner("Generating..."):
                     conditions_str = ', '.join(conditions) if conditions else 'None'
@@ -634,6 +620,7 @@ if active_tab == "AI":
     st.title("🤖 AI Health Analytics Assistant")
     st.markdown("Ask questions about your population in plain English.")
 
+    # -- Suggested questions --
     st.markdown("**Try asking:**")
     c1, c2 = st.columns(2)
     with c1:
@@ -647,6 +634,7 @@ if active_tab == "AI":
 
     st.markdown("---")
 
+    # -- Input box (text_input + button — more reliable than chat_input) --
     input_col, btn_col = st.columns([5, 1])
     with input_col:
         user_question = st.text_input(
@@ -658,10 +646,17 @@ if active_tab == "AI":
     with btn_col:
         ask_clicked = st.button("Ask 🚀", use_container_width=True, type="primary")
 
+    # -- Conversation history --
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    # Process the question when button is clicked (or Enter pressed)
     if ask_clicked and user_question:
         st.session_state.messages.append({"role": "user", "content": user_question})
+
         with st.spinner("Analyzing your question..."):
             result = ask_ai(user_question)
+
         st.session_state.messages.append({
             "role": "assistant",
             "content": result.get("text", ""),
@@ -669,6 +664,7 @@ if active_tab == "AI":
             "data": result.get("data")
         })
 
+    # -- Display conversation (newest first) --
     for message in reversed(st.session_state.messages):
         if message["role"] == "user":
             st.markdown(f"**🧑 You:** {message['content']}")
@@ -679,6 +675,8 @@ if active_tab == "AI":
                     st.code(message["sql"], language="sql")
             if "data" in message and message["data"] is not None and len(message["data"]) > 0:
                 st.dataframe(message["data"].head(20), hide_index=True)
+
+                # Auto-chart small results
                 if len(message["data"]) <= 10 and len(message["data"].columns) >= 2:
                     try:
                         cols = message["data"].columns.tolist()
