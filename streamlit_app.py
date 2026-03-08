@@ -22,7 +22,7 @@ st.set_page_config(
 # -- Custom CSS (works in both light and dark themes) --
 st.markdown("""
 <style>
-    .block-container { padding-top: 1rem; }
+    .block-container { padding-top: 2.5rem; }
 
     /* KPI metric cards - theme-aware */
     div[data-testid="stMetric"] {
@@ -235,18 +235,35 @@ st.sidebar.markdown("Built on Snowflake + Cortex AI")
 # ========================================
 # NAVIGATION
 # ========================================
-active_tab = st.radio(
-    "Navigation",
-    ["📊 Dashboard", "👥 Member Explorer", "⚠️ Care Gaps", "🤖 AI Assistant"],
-    horizontal=True,
-    label_visibility="collapsed"
-)
+st.markdown("")  # spacer
+nav_cols = st.columns(4)
+with nav_cols[0]:
+    dash_btn = st.button("📊 Dashboard", use_container_width=True, type="primary" if "nav" not in st.session_state or st.session_state.nav == "Dashboard" else "secondary")
+    if dash_btn:
+        st.session_state.nav = "Dashboard"
+with nav_cols[1]:
+    member_btn = st.button("👥 Members", use_container_width=True, type="primary" if st.session_state.get("nav") == "Members" else "secondary")
+    if member_btn:
+        st.session_state.nav = "Members"
+with nav_cols[2]:
+    gaps_btn = st.button("⚠️ Care Gaps", use_container_width=True, type="primary" if st.session_state.get("nav") == "Care Gaps" else "secondary")
+    if gaps_btn:
+        st.session_state.nav = "Care Gaps"
+with nav_cols[3]:
+    ai_btn = st.button("🤖 AI Assistant", use_container_width=True, type="primary" if st.session_state.get("nav") == "AI" else "secondary")
+    if ai_btn:
+        st.session_state.nav = "AI"
+
+if "nav" not in st.session_state:
+    st.session_state.nav = "Dashboard"
+
+active_tab = st.session_state.nav
 st.markdown("---")
 
 # ========================================
 # TAB 1: DASHBOARD
 # ========================================
-if active_tab == "📊 Dashboard":
+if active_tab == "Dashboard":
     st.title("Population Health Dashboard")
 
     kpis = run_query(f"""
@@ -389,7 +406,7 @@ if active_tab == "📊 Dashboard":
 # ========================================
 # TAB 2: MEMBER EXPLORER
 # ========================================
-if active_tab == "👥 Member Explorer":
+if active_tab == "Members":
     st.title("Member Explorer")
 
     search_col1, search_col2, search_col3 = st.columns([2, 1, 1])
@@ -523,7 +540,7 @@ if active_tab == "👥 Member Explorer":
 # ========================================
 # TAB 3: CARE GAPS
 # ========================================
-if active_tab == "⚠️ Care Gaps":
+if active_tab == "Care Gaps":
     st.title("Care Gap Analysis")
     try:
         gap_kpis = run_query("""
@@ -584,7 +601,7 @@ if active_tab == "⚠️ Care Gaps":
 # ========================================
 # TAB 4: AI ASSISTANT
 # ========================================
-if active_tab == "🤖 AI Assistant":
+if active_tab == "AI":
     st.title("🤖 AI Health Analytics Assistant")
     st.markdown("Ask questions about your population in plain English.")
 
