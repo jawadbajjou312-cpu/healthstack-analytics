@@ -44,26 +44,37 @@ st.markdown("""
         color: #34d399 !important;
     }
 
-    /* Tab navigation - ensure visibility */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: rgba(28, 58, 92, 0.2);
-        border-radius: 8px;
-        padding: 4px;
+    /* Radio button navigation bar */
+    div[data-testid="stRadio"] > div {
+        flex-direction: row !important;
+        gap: 0px !important;
     }
-    .stTabs [data-baseweb="tab"] {
+    div[data-testid="stRadio"] > div > label {
+        background-color: rgba(28, 58, 92, 0.3) !important;
         color: #d1d5db !important;
+        padding: 10px 24px !important;
+        border-radius: 0px !important;
         font-weight: 600 !important;
         font-size: 1rem !important;
-        padding: 8px 16px !important;
-        border-radius: 6px !important;
+        cursor: pointer !important;
+        border: 1px solid rgba(59, 130, 246, 0.2) !important;
+        margin: 0 !important;
     }
-    .stTabs [aria-selected="true"] {
-        background-color: rgba(59, 130, 246, 0.3) !important;
+    div[data-testid="stRadio"] > div > label:first-child {
+        border-radius: 8px 0 0 8px !important;
+    }
+    div[data-testid="stRadio"] > div > label:last-child {
+        border-radius: 0 8px 8px 0 !important;
+    }
+    div[data-testid="stRadio"] > div > label[data-checked="true"],
+    div[data-testid="stRadio"] > div > label:has(input:checked) {
+        background-color: rgba(59, 130, 246, 0.4) !important;
         color: #ffffff !important;
+        border-color: #3b82f6 !important;
     }
-    .stTabs [data-baseweb="tab-highlight"] {
-        background-color: #3b82f6 !important;
+    /* Hide radio dot */
+    div[data-testid="stRadio"] > div > label > div:first-child {
+        display: none !important;
     }
 
     /* Sidebar branding */
@@ -222,19 +233,20 @@ st.sidebar.markdown("**HealthStack Analytics** v2.0")
 st.sidebar.markdown("Built on Snowflake + Cortex AI")
 
 # ========================================
-# TABS
+# NAVIGATION
 # ========================================
-tab1, tab2, tab3, tab4 = st.tabs([
-    "📊 Dashboard",
-    "👥 Member Explorer",
-    "⚠️ Care Gaps",
-    "🤖 AI Assistant"
-])
+active_tab = st.radio(
+    "Navigation",
+    ["📊 Dashboard", "👥 Member Explorer", "⚠️ Care Gaps", "🤖 AI Assistant"],
+    horizontal=True,
+    label_visibility="collapsed"
+)
+st.markdown("---")
 
 # ========================================
 # TAB 1: DASHBOARD
 # ========================================
-with tab1:
+if active_tab == "📊 Dashboard":
     st.title("Population Health Dashboard")
 
     kpis = run_query(f"""
@@ -377,7 +389,7 @@ with tab1:
 # ========================================
 # TAB 2: MEMBER EXPLORER
 # ========================================
-with tab2:
+if active_tab == "👥 Member Explorer":
     st.title("Member Explorer")
 
     search_col1, search_col2, search_col3 = st.columns([2, 1, 1])
@@ -511,7 +523,7 @@ with tab2:
 # ========================================
 # TAB 3: CARE GAPS
 # ========================================
-with tab3:
+if active_tab == "⚠️ Care Gaps":
     st.title("Care Gap Analysis")
     try:
         gap_kpis = run_query("""
@@ -572,7 +584,7 @@ with tab3:
 # ========================================
 # TAB 4: AI ASSISTANT
 # ========================================
-with tab4:
+if active_tab == "🤖 AI Assistant":
     st.title("🤖 AI Health Analytics Assistant")
     st.markdown("Ask questions about your population in plain English.")
 
