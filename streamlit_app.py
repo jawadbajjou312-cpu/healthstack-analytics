@@ -19,15 +19,56 @@ st.set_page_config(
     layout="wide"
 )
 
-# -- Custom CSS --
+# -- Custom CSS (works in both light and dark themes) --
 st.markdown("""
 <style>
     .block-container { padding-top: 1rem; }
+
+    /* KPI metric cards - theme-aware */
     div[data-testid="stMetric"] {
-        background-color: #f0f4f8;
+        background-color: rgba(28, 58, 92, 0.15);
         border-radius: 8px;
-        padding: 12px;
-        border-left: 4px solid #1B3A5C;
+        padding: 12px 16px;
+        border-left: 4px solid #3b82f6;
+    }
+    div[data-testid="stMetric"] label {
+        color: #9ca3af !important;
+        font-size: 0.85rem !important;
+    }
+    div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+        color: #ffffff !important;
+        font-size: 1.8rem !important;
+        font-weight: 700 !important;
+    }
+    div[data-testid="stMetric"] div[data-testid="stMetricDelta"] {
+        color: #34d399 !important;
+    }
+
+    /* Tab navigation - ensure visibility */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: rgba(28, 58, 92, 0.2);
+        border-radius: 8px;
+        padding: 4px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        color: #d1d5db !important;
+        font-weight: 600 !important;
+        font-size: 1rem !important;
+        padding: 8px 16px !important;
+        border-radius: 6px !important;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: rgba(59, 130, 246, 0.3) !important;
+        color: #ffffff !important;
+    }
+    .stTabs [data-baseweb="tab-highlight"] {
+        background-color: #3b82f6 !important;
+    }
+
+    /* Sidebar branding */
+    section[data-testid="stSidebar"] {
+        background-color: #0f1724;
     }
 </style>
 """, unsafe_allow_html=True)
