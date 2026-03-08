@@ -19,59 +19,22 @@ st.set_page_config(
     layout="wide"
 )
 
-# -- Custom CSS (forces visible text on dark theme + mobile) --
+# -- Custom CSS (adapts to both light and dark themes) --
 st.markdown("""
 <style>
     .block-container { padding-top: 3.5rem; }
 
-    /* GLOBAL: Force all text to be visible on dark backgrounds */
-    .block-container, .block-container * { color: #e2e8f0 !important; }
-    h1, h2, h3, h4, h5, h6,
-    .stMarkdown, .stMarkdown p, .stMarkdown li,
-    .stMarkdown strong, .stMarkdown em,
-    div[data-testid="stText"],
-    div[data-testid="stMarkdownContainer"],
-    div[data-testid="stMarkdownContainer"] p,
-    div[data-testid="stMarkdownContainer"] li,
-    div[data-testid="stMarkdownContainer"] strong {
-        color: #e2e8f0 !important;
-    }
-
-    /* Buttons - make text visible */
-    button[kind="secondary"] { color: #e2e8f0 !important; border-color: #4a5568 !important; }
-    button[kind="primary"] { color: #ffffff !important; }
-
-    /* Text inputs */
-    input[type="text"], textarea { color: #ffffff !important; background-color: #1e293b !important; }
-    input::placeholder { color: #94a3b8 !important; }
-
-    /* KPI metric cards */
+    /* KPI metric cards — theme-adaptive */
     div[data-testid="stMetric"] {
-        background-color: rgba(28, 58, 92, 0.3);
+        background-color: var(--secondary-background-color, rgba(28, 58, 92, 0.15));
         border-radius: 8px; padding: 12px 16px;
         border-left: 4px solid #3b82f6;
     }
-    div[data-testid="stMetric"] label { color: #9ca3af !important; font-size: 0.85rem !important; }
+    div[data-testid="stMetric"] label { font-size: 0.85rem !important; }
     div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
-        color: #ffffff !important; font-size: 1.8rem !important; font-weight: 700 !important;
+        font-size: 1.8rem !important; font-weight: 700 !important;
     }
-    div[data-testid="stMetric"] div[data-testid="stMetricDelta"] { color: #34d399 !important; }
-
-    /* Sidebar */
-    section[data-testid="stSidebar"] { background-color: #0f1724; }
-    section[data-testid="stSidebar"] * { color: #cbd5e1 !important; }
-
-    /* Data tables */
-    .stDataFrame, .stDataFrame * { color: #e2e8f0 !important; }
-
-    /* Expanders */
-    details summary { color: #93c5fd !important; }
-
-    /* Horizontal rules */
-    hr { border-color: #334155 !important; }
-
-    /* Selectbox / multiselect text */
-    div[data-baseweb="select"] * { color: #e2e8f0 !important; }
+    div[data-testid="stMetric"] div[data-testid="stMetricDelta"] { color: #10b981 !important; }
 </style>
 """, unsafe_allow_html=True)
 
