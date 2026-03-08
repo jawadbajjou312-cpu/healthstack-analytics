@@ -51,29 +51,52 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# -- Snowflake Connection --
+# -- Snowflake Connection (with timeout + retry) --
 @st.cache_resource
 def get_snowflake_connection():
-    """Create a cached Snowflake connection using Streamlit secrets."""
-    return snowflake.connector.connect(
-        account=st.secrets["snowflake"]["account"],
-        user=st.secrets["snowflake"]["user"],
-        password=st.secrets["snowflake"]["password"],
-        warehouse=st.secrets["snowflake"]["warehouse"],
-        database=st.secrets["snowflake"]["database"],
-        schema=st.secrets["snowflake"]["schema"],
-        role=st.secrets["snowflake"]["role"]
-    )
+    """Create a cached Snowflake connection with timeout settings."""
+    try:
+        return snowflake.connector.connect(
+            account=st.secrets["snowflake"]["account"],
+            user=st.secrets["snowflake"]["user"],
+            password=st.secrets["snowflake"]["password"],
+            warehouse=st.secrets["snowflake"]["warehouse"],
+            database=st.secrets["snowflake"]["database"],
+            schema=st.secrets["snowflake"]["schema"],
+            role=st.secrets["snowflake"]["role"],
+            login_timeout=30,
+            network_timeout=30,
+        )
+    except Exception as e:
+        st.error(f"Could not connect to Snowflake: {e}")
+        return None
 
 # -- Helper: Run SQL and return DataFrame --
 def run_query(sql):
     conn = get_snowflake_connection()
+    if conn is None:
+        return pd.DataFrame()
     try:
         cur = conn.cursor()
         cur.execute(sql)
         columns = [desc[0] for desc in cur.description]
         data = cur.fetchall()
         return pd.DataFrame(data, columns=columns)
+    except snowflake.connector.errors.DatabaseError:
+        # Connection went stale — clear cache and retry once
+        get_snowflake_connection.clear()
+        try:
+            conn = get_snowflake_connection()
+            if conn is None:
+                return pd.DataFrame()
+            cur = conn.cursor()
+            cur.execute(sql)
+            columns = [desc[0] for desc in cur.description]
+            data = cur.fetchall()
+            return pd.DataFrame(data, columns=columns)
+        except Exception as e:
+            st.error(f"Query error: {str(e)}")
+            return pd.DataFrame()
     except Exception as e:
         st.error(f"Query error: {str(e)}")
         return pd.DataFrame()
@@ -140,6 +163,23 @@ def ask_ai(question):
     return result
 
 
+# -- Connection check (show message instead of infinite spinner) --
+conn = get_snowflake_connection()
+if conn is None:
+    st.warning("Connecting to Snowflake... If this persists, the warehouse may be suspended. Please refresh in 30 seconds.")
+    st.stop()
+
+# -- Cached sidebar data (avoids re-querying on every rerun) --
+@st.cache_data(ttl=300)
+def load_filter_options():
+    """Load sidebar filter options once, cache for 5 min."""
+    risk = run_query("""
+        SELECT DISTINCT risk_category FROM MEMBER_RISK_PROFILE
+        WHERE risk_category IS NOT NULL ORDER BY risk_category
+    """)
+    plans = run_query("SELECT DISTINCT plan_type FROM MEMBER_RISK_PROFILE ORDER BY plan_type")
+    return risk, plans
+
 # ========================================
 # SIDEBAR
 # ========================================
@@ -147,13 +187,10 @@ st.sidebar.title("🏥 HealthStack")
 st.sidebar.markdown("Population Health Command Center")
 st.sidebar.markdown("---")
 
+# Load filter options (cached)
+risk_cats, plan_types = load_filter_options()
+
 # Risk Category Filter
-risk_cats = run_query("""
-    SELECT DISTINCT risk_category
-    FROM MEMBER_RISK_PROFILE
-    WHERE risk_category IS NOT NULL
-    ORDER BY risk_category
-""")
 if len(risk_cats) > 0:
     selected_risk = st.sidebar.multiselect(
         "Risk Category",
@@ -164,7 +201,6 @@ else:
     selected_risk = []
 
 # Plan Type Filter
-plan_types = run_query("SELECT DISTINCT plan_type FROM MEMBER_RISK_PROFILE ORDER BY plan_type")
 if len(plan_types) > 0:
     selected_plans = st.sidebar.multiselect(
         "Plan Type",
