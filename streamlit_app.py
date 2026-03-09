@@ -22,7 +22,7 @@ st.set_page_config(
 # -- Custom CSS (adapts to both light and dark themes) --
 st.markdown("""
 <style>
-    .block-container { padding-top: 3.5rem; }
+    .block-container { padding-top: 2rem; }
 
     /* KPI metric cards — theme-adaptive */
     div[data-testid="stMetric"] {
@@ -35,6 +35,84 @@ st.markdown("""
         font-size: 1.8rem !important; font-weight: 700 !important;
     }
     div[data-testid="stMetric"] div[data-testid="stMetricDelta"] { color: #10b981 !important; }
+
+    /* Hero banner */
+    .hero-banner {
+        background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #0ea5e9 100%);
+        color: #ffffff;
+        padding: 2rem 2.5rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .hero-banner::before {
+        content: '';
+        position: absolute;
+        top: -50%; right: -20%;
+        width: 400px; height: 400px;
+        background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+    .hero-banner h1 {
+        font-size: 2rem;
+        font-weight: 800;
+        margin: 0 0 0.4rem 0;
+        color: #ffffff !important;
+        letter-spacing: -0.5px;
+    }
+    .hero-banner .tagline {
+        font-size: 1.1rem;
+        opacity: 0.92;
+        margin-bottom: 0.8rem;
+        font-weight: 300;
+    }
+    .hero-banner .built-by {
+        font-size: 0.85rem;
+        opacity: 0.75;
+        font-style: italic;
+    }
+    .hero-banner .tech-badges {
+        margin-top: 0.6rem;
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    .hero-banner .tech-badge {
+        background: rgba(255,255,255,0.15);
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 20px;
+        padding: 3px 12px;
+        font-size: 0.75rem;
+        color: #ffffff;
+        backdrop-filter: blur(4px);
+    }
+
+    /* Suggested question chips */
+    .suggested-q {
+        display: inline-block;
+        border-radius: 20px;
+        padding: 0.4rem 1rem;
+        font-size: 0.85rem;
+        margin: 0.25rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    /* Nav buttons active glow */
+    div[data-testid="stButton"] > button[kind="primary"] {
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+    }
+
+    /* Footer */
+    .app-footer {
+        text-align: center;
+        padding: 1.5rem 0 0.5rem 0;
+        font-size: 0.8rem;
+        opacity: 0.6;
+        border-top: 1px solid var(--secondary-background-color, #333);
+        margin-top: 2rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -188,6 +266,29 @@ def ask_ai(question, max_retries=2):
 
 
 # ========================================
+# HERO BANNER
+# ========================================
+st.markdown("""
+<div class="hero-banner">
+    <h1>🏥 HealthStack Analytics</h1>
+    <div class="tagline">
+        AI-Powered Population Health Command Center — Real-time risk stratification, care gap detection,
+        and natural language analytics powered by Snowflake Cortex AI.
+    </div>
+    <div class="built-by">
+        Built &amp; maintained by <strong>Jawad Bajjou</strong> — Sr. Director of Analytics, Optum Health
+    </div>
+    <div class="tech-badges">
+        <span class="tech-badge">Snowflake</span>
+        <span class="tech-badge">Cortex AI</span>
+        <span class="tech-badge">Streamlit</span>
+        <span class="tech-badge">LLM-Powered SQL</span>
+        <span class="tech-badge">Risk Stratification</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ========================================
 # SIDEBAR
 # ========================================
 st.sidebar.title("🏥 HealthStack")
@@ -247,26 +348,25 @@ st.sidebar.markdown("**HealthStack Analytics** v2.0")
 st.sidebar.markdown("Built on Snowflake + Cortex AI")
 
 # ========================================
-# NAVIGATION
+# NAVIGATION (reordered: Dashboard > AI > Members > Care Gaps)
 # ========================================
-st.markdown("")  # spacer
 nav_cols = st.columns(4)
 with nav_cols[0]:
     dash_btn = st.button("📊 Dashboard", use_container_width=True, type="primary" if "nav" not in st.session_state or st.session_state.nav == "Dashboard" else "secondary")
     if dash_btn:
         st.session_state.nav = "Dashboard"
 with nav_cols[1]:
-    member_btn = st.button("👥 Members", use_container_width=True, type="primary" if st.session_state.get("nav") == "Members" else "secondary")
-    if member_btn:
-        st.session_state.nav = "Members"
-with nav_cols[2]:
-    gaps_btn = st.button("⚠️ Care Gaps", use_container_width=True, type="primary" if st.session_state.get("nav") == "Care Gaps" else "secondary")
-    if gaps_btn:
-        st.session_state.nav = "Care Gaps"
-with nav_cols[3]:
     ai_btn = st.button("🤖 AI Assistant", use_container_width=True, type="primary" if st.session_state.get("nav") == "AI" else "secondary")
     if ai_btn:
         st.session_state.nav = "AI"
+with nav_cols[2]:
+    member_btn = st.button("👥 Members", use_container_width=True, type="primary" if st.session_state.get("nav") == "Members" else "secondary")
+    if member_btn:
+        st.session_state.nav = "Members"
+with nav_cols[3]:
+    gaps_btn = st.button("⚠️ Care Gaps", use_container_width=True, type="primary" if st.session_state.get("nav") == "Care Gaps" else "secondary")
+    if gaps_btn:
+        st.session_state.nav = "Care Gaps"
 
 if "nav" not in st.session_state:
     st.session_state.nav = "Dashboard"
@@ -418,7 +518,110 @@ if active_tab == "Dashboard":
         st.dataframe(concentration, use_container_width=True, hide_index=True)
 
 # ========================================
-# TAB 2: MEMBER EXPLORER
+# TAB 2: AI ASSISTANT (moved up)
+# ========================================
+if active_tab == "AI":
+    st.title("🤖 AI Health Analytics Assistant")
+    st.markdown("Ask questions about your population in plain English — powered by **Snowflake Cortex AI**.")
+
+    # -- Suggested questions as clickable buttons --
+    st.markdown("**Try one of these:**")
+
+    suggested_questions = [
+        "How many members are in each risk category?",
+        "What is the total cost for high risk members?",
+        "Show me diabetic members with more than 2 ER visits",
+        "What is the average HbA1c by risk category?",
+        "Which plan type has the highest cost per member?",
+        "How many members have both diabetes and heart failure?",
+    ]
+
+    # Initialize session state for clicked question
+    if "clicked_question" not in st.session_state:
+        st.session_state.clicked_question = None
+
+    # Render as 2 rows of 3 buttons
+    row1 = st.columns(3)
+    row2 = st.columns(3)
+    for i, q in enumerate(suggested_questions[:3]):
+        with row1[i]:
+            if st.button(q, key=f"sq_{i}", use_container_width=True):
+                st.session_state.clicked_question = q
+    for i, q in enumerate(suggested_questions[3:]):
+        with row2[i]:
+            if st.button(q, key=f"sq_{i+3}", use_container_width=True):
+                st.session_state.clicked_question = q
+
+    st.markdown("---")
+
+    # -- Input box (text_input + button — more reliable than chat_input) --
+    input_col, btn_col = st.columns([5, 1])
+    with input_col:
+        user_question = st.text_input(
+            "Your question",
+            placeholder="Ask about your population...",
+            label_visibility="collapsed",
+            key="ai_question",
+            value=st.session_state.get("clicked_question", "") or ""
+        )
+    with btn_col:
+        ask_clicked = st.button("Ask 🚀", use_container_width=True, type="primary")
+
+    # Auto-trigger if a suggested question was clicked
+    if st.session_state.clicked_question:
+        ask_clicked = True
+        user_question = st.session_state.clicked_question
+        st.session_state.clicked_question = None  # Reset so it doesn't re-fire
+
+    # -- Conversation history --
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    # Process the question when button is clicked (or Enter pressed)
+    if ask_clicked and user_question:
+        st.session_state.messages.append({"role": "user", "content": user_question})
+
+        with st.spinner("Analyzing your question..."):
+            result = ask_ai(user_question)
+
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": result.get("text", ""),
+            "sql": result.get("sql", ""),
+            "data": result.get("data")
+        })
+
+    # -- Display conversation (newest first) --
+    for message in reversed(st.session_state.messages):
+        if message["role"] == "user":
+            st.markdown(f"**🧑 You:** {message['content']}")
+        else:
+            st.markdown(f"**🤖 Assistant:** {message['content']}")
+            if "sql" in message and message["sql"]:
+                with st.expander("View SQL"):
+                    st.code(message["sql"], language="sql")
+            if "data" in message and message["data"] is not None and len(message["data"]) > 0:
+                st.dataframe(message["data"].head(20), hide_index=True)
+
+                # Auto-chart small results
+                if len(message["data"]) <= 10 and len(message["data"].columns) >= 2:
+                    try:
+                        cols = message["data"].columns.tolist()
+                        str_col = next((c for c in cols if message["data"][c].dtype == 'object'), None)
+                        num_col = next((c for c in cols if message["data"][c].dtype in ['int64','float64']), None)
+                        if str_col and num_col:
+                            chart = alt.Chart(message["data"]).mark_bar(cornerRadiusEnd=4).encode(
+                                y=alt.Y(f'{str_col}:N', sort='-x', title=''),
+                                x=alt.X(f'{num_col}:Q', title=num_col),
+                                color=alt.Color(f'{str_col}:N', legend=None, scale=alt.Scale(scheme='tableau10'))
+                            ).properties(height=min(len(message["data"]) * 40, 300))
+                            st.altair_chart(chart, use_container_width=True)
+                    except Exception:
+                        pass
+        st.markdown("---")
+
+# ========================================
+# TAB 3: MEMBER EXPLORER
 # ========================================
 if active_tab == "Members":
     st.title("Member Explorer")
@@ -552,7 +755,7 @@ if active_tab == "Members":
             st.warning("Member not found.")
 
 # ========================================
-# TAB 3: CARE GAPS
+# TAB 4: CARE GAPS
 # ========================================
 if active_tab == "Care Gaps":
     st.title("Care Gap Analysis")
@@ -613,81 +816,10 @@ if active_tab == "Care Gaps":
         st.info("Care Gaps table not available. Run Phase 3 SQL to create it.")
 
 # ========================================
-# TAB 4: AI ASSISTANT
+# FOOTER
 # ========================================
-if active_tab == "AI":
-    st.title("🤖 AI Health Analytics Assistant")
-    st.markdown("Ask questions about your population in plain English.")
-
-    # -- Suggested questions --
-    st.markdown("**Try asking:**")
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown("- How many members are in each risk category?")
-        st.markdown("- What is the total cost for high risk members?")
-        st.markdown("- Show me diabetic members with more than 2 ER visits")
-    with c2:
-        st.markdown("- What is the average HbA1c by risk category?")
-        st.markdown("- Which plan type has the highest cost per member?")
-        st.markdown("- How many members have both diabetes and heart failure?")
-
-    st.markdown("---")
-
-    # -- Input box (text_input + button — more reliable than chat_input) --
-    input_col, btn_col = st.columns([5, 1])
-    with input_col:
-        user_question = st.text_input(
-            "Your question",
-            placeholder="Ask about your population...",
-            label_visibility="collapsed",
-            key="ai_question"
-        )
-    with btn_col:
-        ask_clicked = st.button("Ask 🚀", use_container_width=True, type="primary")
-
-    # -- Conversation history --
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
-    # Process the question when button is clicked (or Enter pressed)
-    if ask_clicked and user_question:
-        st.session_state.messages.append({"role": "user", "content": user_question})
-
-        with st.spinner("Analyzing your question..."):
-            result = ask_ai(user_question)
-
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": result.get("text", ""),
-            "sql": result.get("sql", ""),
-            "data": result.get("data")
-        })
-
-    # -- Display conversation (newest first) --
-    for message in reversed(st.session_state.messages):
-        if message["role"] == "user":
-            st.markdown(f"**🧑 You:** {message['content']}")
-        else:
-            st.markdown(f"**🤖 Assistant:** {message['content']}")
-            if "sql" in message and message["sql"]:
-                with st.expander("View SQL"):
-                    st.code(message["sql"], language="sql")
-            if "data" in message and message["data"] is not None and len(message["data"]) > 0:
-                st.dataframe(message["data"].head(20), hide_index=True)
-
-                # Auto-chart small results
-                if len(message["data"]) <= 10 and len(message["data"].columns) >= 2:
-                    try:
-                        cols = message["data"].columns.tolist()
-                        str_col = next((c for c in cols if message["data"][c].dtype == 'object'), None)
-                        num_col = next((c for c in cols if message["data"][c].dtype in ['int64','float64']), None)
-                        if str_col and num_col:
-                            chart = alt.Chart(message["data"]).mark_bar(cornerRadiusEnd=4).encode(
-                                y=alt.Y(f'{str_col}:N', sort='-x', title=''),
-                                x=alt.X(f'{num_col}:Q', title=num_col),
-                                color=alt.Color(f'{str_col}:N', legend=None, scale=alt.Scale(scheme='tableau10'))
-                            ).properties(height=min(len(message["data"]) * 40, 300))
-                            st.altair_chart(chart, use_container_width=True)
-                    except Exception:
-                        pass
-        st.markdown("---")
+st.markdown("""
+<div class="app-footer">
+    HealthStack Analytics v2.0 &nbsp;|&nbsp; Powered by Snowflake &amp; Cortex AI &nbsp;|&nbsp; Built by Jawad Bajjou
+</div>
+""", unsafe_allow_html=True)
