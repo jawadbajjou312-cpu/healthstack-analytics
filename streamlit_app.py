@@ -101,7 +101,7 @@ st.markdown("""
 
     /* Nav buttons active glow */
     div[data-testid="stButton"] > button[kind="primary"] {
-        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+        box-shadow: 0 2px 10px rgba(37, 99, 235, 0.4);
     }
 
     /* Footer */
@@ -350,26 +350,29 @@ st.sidebar.markdown("Built on Snowflake + Cortex AI")
 # ========================================
 # NAVIGATION (reordered: Dashboard > AI > Members > Care Gaps)
 # ========================================
-nav_cols = st.columns(4)
-with nav_cols[0]:
-    dash_btn = st.button("📊 Dashboard", use_container_width=True, type="primary" if "nav" not in st.session_state or st.session_state.nav == "Dashboard" else "secondary")
-    if dash_btn:
-        st.session_state.nav = "Dashboard"
-with nav_cols[1]:
-    ai_btn = st.button("🤖 AI Assistant", use_container_width=True, type="primary" if st.session_state.get("nav") == "AI" else "secondary")
-    if ai_btn:
-        st.session_state.nav = "AI"
-with nav_cols[2]:
-    member_btn = st.button("👥 Members", use_container_width=True, type="primary" if st.session_state.get("nav") == "Members" else "secondary")
-    if member_btn:
-        st.session_state.nav = "Members"
-with nav_cols[3]:
-    gaps_btn = st.button("⚠️ Care Gaps", use_container_width=True, type="primary" if st.session_state.get("nav") == "Care Gaps" else "secondary")
-    if gaps_btn:
-        st.session_state.nav = "Care Gaps"
-
 if "nav" not in st.session_state:
     st.session_state.nav = "Dashboard"
+
+def set_nav(tab_name):
+    st.session_state.nav = tab_name
+
+nav_cols = st.columns(4)
+with nav_cols[0]:
+    st.button("📊 Dashboard", use_container_width=True,
+              type="primary" if st.session_state.nav == "Dashboard" else "secondary",
+              on_click=set_nav, args=("Dashboard",))
+with nav_cols[1]:
+    st.button("🤖 AI Assistant", use_container_width=True,
+              type="primary" if st.session_state.nav == "AI" else "secondary",
+              on_click=set_nav, args=("AI",))
+with nav_cols[2]:
+    st.button("👥 Members", use_container_width=True,
+              type="primary" if st.session_state.nav == "Members" else "secondary",
+              on_click=set_nav, args=("Members",))
+with nav_cols[3]:
+    st.button("⚠️ Care Gaps", use_container_width=True,
+              type="primary" if st.session_state.nav == "Care Gaps" else "secondary",
+              on_click=set_nav, args=("Care Gaps",))
 
 active_tab = st.session_state.nav
 st.markdown("---")
