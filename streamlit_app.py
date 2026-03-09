@@ -90,63 +90,99 @@ def run_query(sql):
         return pd.DataFrame()
 
 # -- Helper: AI Chat using Cortex COMPLETE --
-def ask_ai(question):
+def ask_ai(question, max_retries=2):
     """Use Cortex COMPLETE to answer natural language questions about the data."""
     result = {"text": "", "sql": "", "data": None}
 
-    try:
-        # Step 1: Generate SQL from question
-        sql_gen = run_query(f"""
-            SELECT SNOWFLAKE.CORTEX.COMPLETE(
-                'llama3.1-70b',
-                'You are a SQL expert for healthcare analytics. Generate a Snowflake SQL query
-                 to answer the following question. Only return the SQL, no explanation.
+    # Escape single quotes in the question to prevent SQL injection/breakage
+    safe_question = question.replace("'", "\\'")
 
-                 Available table: HEALTHCARE_ANALYTICS.ANALYTICS.MEMBER_RISK_PROFILE
-                 Columns: member_id, first_name, last_name, age, age_group, gender, plan_type,
-                          zip_code, has_diabetes, has_hypertension, has_chf, has_copd, has_ckd,
-                          chronic_condition_count, total_claims, er_visits, inpatient_admits,
-                          office_visits, total_paid_amount, er_cost, inpatient_cost,
-                          latest_hba1c, latest_bnp, latest_egfr, risk_score, risk_tier,
-                          composite_risk_score, risk_category, care_gap_count, worsening_trend_count
+    for attempt in range(max_retries):
+        try:
+            # Step 1: Generate SQL from question
+            sql_gen = run_query(f"""
+                SELECT SNOWFLAKE.CORTEX.COMPLETE(
+                    'llama3.1-70b',
+                    'You are a SQL expert for healthcare analytics. Generate a Snowflake SQL query
+                     to answer the following question. Only return the SQL, no explanation.
+                     Always use fully qualified table names with HEALTHCARE_ANALYTICS.ANALYTICS. prefix.
 
-                 risk_category values: Critical - Immediate Intervention, High Risk - Active Management,
-                          Rising Risk - Preventive Outreach, Moderate - Routine Monitoring,
-                          Low Risk - Wellness Programs
+                     Available table: HEALTHCARE_ANALYTICS.ANALYTICS.MEMBER_RISK_PROFILE
+                     Columns: member_id, first_name, last_name, age, age_group, gender, plan_type,
+                              zip_code, has_diabetes, has_hypertension, has_chf, has_copd, has_ckd,
+                              chronic_condition_count, total_claims, er_visits, inpatient_admits,
+                              office_visits, total_paid_amount, er_cost, inpatient_cost,
+                              latest_hba1c, latest_bnp, latest_egfr, risk_score, risk_tier,
+                              composite_risk_score, risk_category, care_gap_count, worsening_trend_count
 
-                 Also available: HEALTHCARE_ANALYTICS.ANALYTICS.CARE_GAPS (member_id, gap_type, gap_severity, measure_category, days_since_action)
-                 Also available: HEALTHCARE_ANALYTICS.ANALYTICS.INTERVENTION_RECOMMENDATIONS (member_id, member_name, primary_intervention, outreach_timeline, risk_category, estimated_avoidable_cost)
+                     risk_category values: Critical - Immediate Intervention, High Risk - Active Management,
+                              Rising Risk - Preventive Outreach, Moderate - Routine Monitoring,
+                              Low Risk - Wellness Programs
 
-                 Question: {question}
+                     Also available: HEALTHCARE_ANALYTICS.ANALYTICS.CARE_GAPS (member_id, gap_type, gap_severity, measure_category, days_since_action)
+                     Also available: HEALTHCARE_ANALYTICS.ANALYTICS.INTERVENTION_RECOMMENDATIONS (member_id, member_name, primary_intervention, outreach_timeline, risk_category, estimated_avoidable_cost)
 
-                 Return ONLY the SQL query, nothing else.'
-            ) AS generated_sql
-        """)
+                     Question: {safe_question}
 
-        if len(sql_gen) > 0:
+                     Return ONLY the SQL query, nothing else.'
+                ) AS generated_sql
+            """)
+
+            # Check if Cortex returned a result
+            if len(sql_gen) == 0 or sql_gen['GENERATED_SQL'][0] is None:
+                if attempt < max_retries - 1:
+                    continue  # Retry
+                result["text"] = "The AI service is temporarily unavailable. Please try again in a moment."
+                return result
+
             generated_sql = sql_gen['GENERATED_SQL'][0].strip()
             generated_sql = generated_sql.replace('```sql', '').replace('```', '').strip()
+
+            # Skip if it looks like an error or empty
+            if not generated_sql or len(generated_sql) < 10 or 'SELECT' not in generated_sql.upper():
+                if attempt < max_retries - 1:
+                    continue
+                result["text"] = "I couldn't generate a valid query for that question. Try rephrasing it."
+                return result
+
             result["sql"] = generated_sql
 
             # Step 2: Execute the SQL
             data = run_query(generated_sql)
+
+            # Check if query returned data
+            if data is None or len(data) == 0:
+                result["text"] = "The query ran successfully but returned no results. Try broadening your question."
+                result["data"] = pd.DataFrame()
+                return result
+
             result["data"] = data
 
             # Step 3: Generate natural language answer
             result_str = data.head(10).to_string()
+            safe_result_str = result_str.replace("'", "\\'")
             nl = run_query(f"""
                 SELECT SNOWFLAKE.CORTEX.COMPLETE(
                     'llama3.1-70b',
-                    'Based on this data, provide a brief clear answer to: {question}
-                     Data: {result_str}
+                    'Based on this data, provide a brief clear answer to: {safe_question}
+                     Data: {safe_result_str}
                      Give a concise answer in 2-3 sentences with key numbers.'
                 ) AS response
             """)
-            if len(nl) > 0:
+            if len(nl) > 0 and nl['RESPONSE'][0] is not None:
                 result["text"] = nl['RESPONSE'][0]
+            else:
+                # Data was retrieved but summary failed — still show the data
+                result["text"] = f"Found {len(data)} results. (AI summary temporarily unavailable.)"
 
-    except Exception as e:
-        result["text"] = f"I had trouble with that question. Try rephrasing. Error: {str(e)}"
+            return result
+
+        except Exception as e:
+            if attempt < max_retries - 1:
+                # Clear connection cache and retry
+                get_snowflake_connection.clear()
+                continue
+            result["text"] = f"I had trouble with that question. Try again or rephrase. Error: {str(e)}"
 
     return result
 
