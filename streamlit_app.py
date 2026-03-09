@@ -88,15 +88,20 @@ st.markdown("""
         backdrop-filter: blur(4px);
     }
 
-    /* Suggested question chips */
-    .suggested-q {
-        display: inline-block;
-        border-radius: 20px;
-        padding: 0.4rem 1rem;
-        font-size: 0.85rem;
-        margin: 0.25rem;
-        cursor: pointer;
+    /* Suggested question buttons — colored background */
+    div.sq-row div[data-testid="stButton"] > button {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(14, 165, 233, 0.10) 100%);
+        border: 1px solid rgba(37, 99, 235, 0.25);
+        border-radius: 10px;
+        padding: 0.55rem 0.8rem;
+        font-size: 0.82rem;
         transition: all 0.2s ease;
+        text-align: left;
+    }
+    div.sq-row div[data-testid="stButton"] > button:hover {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.25) 0%, rgba(14, 165, 233, 0.20) 100%);
+        border-color: rgba(37, 99, 235, 0.5);
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
     }
 
     /* Nav buttons active glow */
@@ -531,29 +536,38 @@ if active_tab == "AI":
     st.markdown("**Try one of these:**")
 
     suggested_questions = [
+        # Risk & population
         "How many members are in each risk category?",
+        "What is the average risk score by age group?",
+        "Show me the top 10 highest risk members",
+        # Cost & utilization
         "What is the total cost for high risk members?",
-        "Show me diabetic members with more than 2 ER visits",
-        "What is the average HbA1c by risk category?",
         "Which plan type has the highest cost per member?",
+        "Who are the top 10 most expensive members?",
+        # Clinical / conditions
+        "What is the average HbA1c by risk category?",
+        "Show me diabetic members with more than 2 ER visits",
         "How many members have both diabetes and heart failure?",
+        # Interventions & care gaps
+        "Which members need immediate intervention?",
+        "What are the top avoidable costs by risk category?",
+        "Show me critical care gaps by gap type",
     ]
 
     # Initialize session state for clicked question
     if "clicked_question" not in st.session_state:
         st.session_state.clicked_question = None
 
-    # Render as 2 rows of 3 buttons
-    row1 = st.columns(3)
-    row2 = st.columns(3)
-    for i, q in enumerate(suggested_questions[:3]):
-        with row1[i]:
-            if st.button(q, key=f"sq_{i}", use_container_width=True):
-                st.session_state.clicked_question = q
-    for i, q in enumerate(suggested_questions[3:]):
-        with row2[i]:
-            if st.button(q, key=f"sq_{i+3}", use_container_width=True):
-                st.session_state.clicked_question = q
+    # Render as rows of 3 buttons inside a styled container
+    with st.container():
+        st.markdown('<div class="sq-row">', unsafe_allow_html=True)
+        for row_start in range(0, len(suggested_questions), 3):
+            row_cols = st.columns(3)
+            for i, q in enumerate(suggested_questions[row_start:row_start + 3]):
+                with row_cols[i]:
+                    if st.button(q, key=f"sq_{row_start + i}", use_container_width=True):
+                        st.session_state.clicked_question = q
+        st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown("---")
 
